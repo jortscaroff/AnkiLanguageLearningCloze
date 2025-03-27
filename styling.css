@@ -1,51 +1,96 @@
 .card {
-    font-family: arial;
-    font-size: 25px;
-    text-align: center;
-    color: black;
-    background-color: white;
+  font-family: arial;
+  font-size: 25px;
+  text-align: center;
+  /* CSS variables for theme colors */
+  --input-border-color: #ccc;
+  --input-focus-border-color: #4D90FE;
+  --text-color: black;
+  --bg-color: white;
+  --char-correct-color: green;
+  --char-incorrect-color: red;
+  --highlight-color: green;
+  --button-bg-color: #f0f0f0;
+  --button-border-color: #d0d0d0;
+  --button-text-color: black;
+
+  color: var(--text-color);
+  background-color: var(--bg-color);
 }
-#input-box {
-    font-size: 25px;
-    height: 25px;
-    border: 1px solid #ccc;
-    padding: 2px;
+
+#hint-display {
+  font-size: 16px;
 }
+
+#input-simulation-container {
+  vertical-align: middle;
+  margin: 0px 0px 4px;
+}
+
+#real-input-box {
+  outline: none;
+  border: none; /* Border is on displayDiv */
+}
+
+#char-display-div {
+  cursor: text;
+  border: 1px solid var(--input-border-color);
+  /* Other essential styles like position, size, font, padding, box-sizing are set via JS */
+}
+
 #measure {
-    visibility: hidden;
-    display: inline-block;
-    font-size: 25px;
-}
-#hint {
-		font-size: 16px;
+     visibility: hidden;
+     display: inline-block;
+     font-size: 25px;
 }
 
-
-/* Default styles for light mode */
-#input-box.correct {
-    color: green; /* Standard green for correct input */
+/* Focus styling via the container class */
+.input-simulation-container.is-focused #char-display-div {
+  border-color: var(--input-focus-border-color);
 }
 
-#input-box.incorrect {
-    color: red; /* Standard red for incorrect input */
+#char-display-div span {
+  display: inline;
 }
 
-/* Night mode specific styles */
-.nightMode #input-box.correct {
-    color: lightgreen; /* Lighter green for better visibility in night mode */
+.char-correct {
+  color: var(--char-correct-color);
 }
 
-.nightMode #input-box.incorrect {
-    color: #ff6e67; /* Light red for better visibility in night mode */
+.char-incorrect {
+  color: var(--char-incorrect-color);
 }
 
-/* Default style for the highlighted cloze word */
+/* --- Night Mode Adjustments --- */
+
+.nightMode .card {
+  /* Update CSS variables for night mode */
+  --input-border-color: #777;
+  /* --input-focus-border-color: lightblue; */ /* Optional: different focus color for night */
+  --text-color: white;
+  --bg-color: #2d2d2d;
+  --char-correct-color: lightgreen;
+  --char-incorrect-color: #ff6e67;
+  --highlight-color: lightgreen;
+  --button-bg-color: #555;
+  --button-border-color: #777;
+  --button-text-color: white;
+}
+
+/* Caret color for night mode */
+.nightMode #real-input-box {
+    caret-color: white;
+}
+
+/* Buttons in night mode */
+.nightMode button {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+    border: 1px solid var(--button-border-color);
+}
+
+/* Highlight style (uses variable) */
 .highlight {
-    color: green; /* Standard green */
-    font-weight: bold;
-}
-
-/* Night mode specific style */
-.nightMode .highlight {
-    color: lightgreen; /* Lighter green for better visibility in night mode */
+  color: var(--highlight-color);
+  font-weight: bold;
 }
