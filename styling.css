@@ -1,0 +1,51 @@
+.card {
+    font-family: arial;
+    font-size: 25px;
+    text-align: center;
+    color: black;
+    background-color: white;
+}
+#input-box {
+    font-size: 25px;
+    height: 25px;
+    border: 1px solid #ccc;
+    padding: 2px;
+}
+#measure {
+    visibility: hidden;
+    display: inline-block;
+    font-size: 25px;
+}
+#hint {
+		font-size: 16px;
+}
+
+
+/* Default styles for light mode */
+#input-box.correct {
+    color: green; /* Standard green for correct input */
+}
+
+#input-box.incorrect {
+    color: red; /* Standard red for incorrect input */
+}
+
+/* Night mode specific styles */
+.nightMode #input-box.correct {
+    color: lightgreen; /* Lighter green for better visibility in night mode */
+}
+
+.nightMode #input-box.incorrect {
+    color: #ff6e67; /* Light red for better visibility in night mode */
+}
+
+/* Default style for the highlighted cloze word */
+.highlight {
+    color: green; /* Standard green */
+    font-weight: bold;
+}
+
+/* Night mode specific style */
+.nightMode .highlight {
+    color: lightgreen; /* Lighter green for better visibility in night mode */
+}

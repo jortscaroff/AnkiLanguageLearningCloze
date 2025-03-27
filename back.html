@@ -1,0 +1,82 @@
+{{Audio}}
+<div id="sentence-container">{{Sentence}}</div>
+<br>
+<div>{{Translation}}</div>
+
+<!-- Button to trigger the typing practice feature -->
+<button id="typing-practice-button">Practice Typing (10x)</button>
+
+<!-- Input box and progress tracker for typing practice -->
+<div id="typing-practice-container" style="display: none;">
+    <input type="text" id="practice-input-box" style="font-size: 25px; height: 25px; border: 1px solid #ccc; padding: 2px;">
+    <p id="practice-progress" style="font-size: 25px; margin-top: 10px;">Typed correctly: 0/10</p>
+</div>
+
+<script>
+    var clozeWord = "{{Cloze}}";
+    var sentenceContainer = document.getElementById('sentence-container');
+    var sentence = sentenceContainer.innerHTML;
+
+    // Highlight the cloze word
+    var clozeWithBraces = "{" + clozeWord + "}";
+    var sentenceWithHighlight;
+
+    if (sentence.includes(clozeWithBraces)) {
+        sentenceWithHighlight = sentence.replace(clozeWithBraces, '<span class="highlight">' + clozeWord + '</span>');
+    } else {
+        sentenceWithHighlight = sentence.replace(clozeWord, '<span class="highlight">' + clozeWord + '</span>');
+    }
+    sentenceContainer.innerHTML = sentenceWithHighlight;
+
+    // Typing practice feature
+    var practiceButton = document.getElementById('typing-practice-button');
+    var practiceContainer = document.getElementById('typing-practice-container');
+    var practiceInputBox = document.getElementById('practice-input-box');
+    var progressText = document.getElementById('practice-progress');
+    var correctCount = 0;
+
+    practiceButton.onclick = startTypingPractice;
+
+    // Keyboard shortcut for triggering typing practice (e.g., "P" key for Practice)
+    document.addEventListener('keydown', function(event) {
+        // Use event.code to detect the "P" key, which works across keyboard layouts
+        if (event.code === 'KeyP') {
+            event.preventDefault(); // Prevent the default action (adding 'P' to the input)
+            startTypingPractice();
+        }
+    });
+
+    function startTypingPractice() {
+        // Show the typing practice container
+        practiceContainer.style.display = 'block';
+        correctCount = 0; // Reset count for new practice session
+        progressText.textContent = 'Typed correctly: 0/10';
+        practiceInputBox.disabled = false;
+        practiceInputBox.value = ''; // Clear the input box
+        practiceInputBox.focus();
+    }
+
+    // Function to check user input and track progress
+    practiceInputBox.oninput = function() {
+        if (practiceInputBox.value === clozeWord) {
+            correctCount++;
+            progressText.textContent = 'Typed correctly: ' + correctCount + '/10';
+
+            // After each correct typing, clear the input for the next round
+            if (correctCount < 10) {
+                // Disable the input momentarily to ensure proper clearing
+                practiceInputBox.disabled = true;
+                setTimeout(function() {
+                    practiceInputBox.value = ''; // Clear input box to avoid any remaining characters
+                    practiceInputBox.disabled = false;
+                    practiceInputBox.focus(); // Focus again for next round
+                }, 100); // Add a small delay to clear the box after the full input is checked
+            } else {
+                practiceInputBox.disabled = true;
+                progressText.textContent = 'You have successfully typed the word 10 times!';
+            }
+        }
+    };
+</script>
+<br>
+{{Extra}}
