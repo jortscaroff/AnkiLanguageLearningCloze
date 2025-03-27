@@ -25,6 +25,7 @@
 #input-simulation-container {
   vertical-align: middle;
   margin: 0px 0px 4px;
+  padding: 0px 2px 0px 2px
 }
 
 #real-input-box {
@@ -59,6 +60,14 @@
 
 .char-incorrect {
   color: var(--char-incorrect-color);
+}
+
+.char-incomplete {
+  color: orange; /* Or your preferred shade of orange */
+}
+
+.nightMode .char-incomplete {
+  color: #FFA500; /* Adjust orange for night mode visibility if needed */
 }
 
 /* --- Night Mode Adjustments --- */

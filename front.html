@@ -141,22 +141,70 @@
         return inputContainer;
     }
 
-    function checkInput() {
-        if (!inputBox || !displayDiv) return;
-        var userInput = inputBox.value;
-        displayDiv.innerHTML = '';
-        for (var i = 0; i < userInput.length; i++) {
-            var charSpan = document.createElement('span');
-            charSpan.textContent = userInput[i];
-            if (i < clozeWord.length && userInput[i] === clozeWord[i]) {
-                charSpan.className = 'char-correct';
+function checkInput() {
+    if (!inputBox || !displayDiv) return;
+    var userInput = inputBox.value;
+    displayDiv.innerHTML = ''; // Clear previous content
+
+    for (var i = 0; i < userInput.length; i++) {
+        var charSpan = document.createElement('span');
+        var inputChar = userInput[i];
+        charSpan.textContent = inputChar;
+        var className = 'char-incorrect'; // Default to incorrect
+
+        if (i < clozeWord.length) {
+            var targetChar = clozeWord[i];
+
+            if (inputChar === targetChar) {
+                // Exact match
+                className = 'char-correct';
             } else {
-                charSpan.className = 'char-incorrect';
+                // Enhanced Hangul syllable check and incomplete matching
+                try {
+                    var targetCode = targetChar.charCodeAt(0);
+                    // Check if target is a Hangul syllable
+                    if (targetCode >= 0xAC00 && targetCode <= 0xD7A3) {
+                        var targetNFD = targetChar.normalize('NFD');
+                        var inputNFD = inputChar.normalize('NFD');
+
+                        //New logic to check for valid initial Jamo
+                        if(isInitialJamo(inputChar, targetChar)){
+                             className = 'char-incomplete';
+                        }
+                        else if (targetNFD.length > 1 && targetNFD !== inputNFD && targetNFD.startsWith(inputNFD)) {
+                            className = 'char-incomplete'; // Orange state
+                        }
+                        // Otherwise, it remains 'char-incorrect'
+                    }
+                    // If target is not a Hangul syllable, any mismatch is incorrect.
+                } catch (e) {
+                    // normalize() might fail in very old environments, default to incorrect
+                    console.error("Error during normalization:", e);
+                    className = 'char-incorrect';
+                }
             }
-            displayDiv.appendChild(charSpan);
         }
-        syncScroll();
+        // If userInput is longer than clozeWord, extra chars are incorrect by default
+
+        charSpan.className = className;
+        displayDiv.appendChild(charSpan);
     }
+    syncScroll(); // Sync scroll after updating content
+}
+
+function isInitialJamo(inputChar, targetSyllable) {
+    const targetCode = targetSyllable.charCodeAt(0);
+    if (targetCode < 0xAC00 || targetCode > 0xD7A3) return false;
+
+    const code = targetCode - 0xAC00;
+    const initialIndex = Math.floor(code / (21 * 28));
+    const compatibilityJamoMap = [0x3131, 0x3132, 0x3134, 0x3137, 0x3138, 0x3139, 0x3141, 0x3142, 0x3143, 0x3145, 0x3146, 0x3147, 0x3148, 0x3149, 0x314A, 0x314B, 0x314C, 0x314D, 0x314E];
+    if (initialIndex >= 0 && initialIndex < compatibilityJamoMap.length) {
+        const expectedJamo = String.fromCharCode(compatibilityJamoMap[initialIndex]);
+        return inputChar === expectedJamo;
+    }
+    return false;
+}
 
     function syncScroll() {
         if (inputBox && displayDiv) {
