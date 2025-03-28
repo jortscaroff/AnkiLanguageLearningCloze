@@ -193,16 +193,39 @@
                                         let targetFinalIndex = getFinalJamoIndex(targetChar); // 0 means no final
                                         let inputFinalIndex = getFinalJamoIndex(inputChar);   // 0 means no final
 
-                                        // Check for partial match (same initial & medial, input lacks final, target has final)
-                                        if (targetInitialIndex !== null &&
-                                            targetInitialIndex === inputInitialIndex &&
-                                            targetMedialIndex !== null &&
-                                            targetMedialIndex === inputMedialIndex &&
-                                            inputFinalIndex === 0 &&
-                                            targetFinalIndex !== null && targetFinalIndex !== 0) {
-                                            className = 'char-incomplete';
+                                        // Check if initials match
+                                        if (targetInitialIndex !== null && targetInitialIndex === inputInitialIndex) {
+                                            // Initials match. Now check medials and finals.
+                                            if (targetMedialIndex !== null && targetMedialIndex === inputMedialIndex) {
+                                                // Initials and Medials match. Check finals.
+                                                if (inputFinalIndex === 0 && targetFinalIndex !== null && targetFinalIndex !== 0) {
+                                                    // Input lacks final, target has final (e.g., '가' vs '각')
+                                                    className = 'char-incomplete';
+                                                } else if (inputFinalIndex !== targetFinalIndex) {
+                                                    // Finals mismatch (e.g., '각' vs '간')
+                                                    className = 'char-incorrect';
+                                                }
+                                                // If finals also match (inputFinalIndex === targetFinalIndex),
+                                                // it implies inputChar === targetChar, which was handled earlier.
+                                                // If somehow reached here, treat as incorrect.
+                                                else {
+                                                     className = 'char-incorrect';
+                                                }
+                                            } else if (targetMedialIndex !== null && inputMedialIndex !== null && isBaseMedialVowel(inputMedialIndex, targetMedialIndex)) {
+                                                // Initials match, Input Medial is a base component of Target Medial (e.g., '호' vs '회')
+                                                if (inputFinalIndex === 0) {
+                                                    // If input has no final consonant, consider it incomplete.
+                                                    className = 'char-incomplete';
+                                                } else {
+                                                    // Input has a final, but medials are only base-related. Incorrect.
+                                                    className = 'char-incorrect';
+                                                }
+                                            } else {
+                                                // Initials match, but Medials are unrelated. Incorrect.
+                                                className = 'char-incorrect';
+                                            }
                                         } else {
-                                            // If conditions for incomplete are not met, it's incorrect
+                                            // Initials do not match. Incorrect.
                                             className = 'char-incorrect';
                                         }
                                     } else {
@@ -404,6 +427,33 @@
             // Prevent the default behavior of mousedown, which includes taking focus
             event.preventDefault();
         }
+
+        // --- New Helper Function for Vowel Relationships ---
+        function isBaseMedialVowel(inputMedialIndex, targetMedialIndex) {
+            if (inputMedialIndex === null || targetMedialIndex === null) return false;
+            // We are only interested if the input is a BASE of the target,
+            // not if they are identical (that's handled elsewhere).
+            if (inputMedialIndex === targetMedialIndex) return false;
+
+            // Map of compound vowels (targetMedialIndex) to their base vowel components (inputMedialIndex)
+            // Corrected indices based on standard Hangul calculation:
+            // ㅏ(0),ㅐ(1),ㅑ(2),ㅒ(3),ㅓ(4),ㅔ(5),ㅕ(6),ㅖ(7),ㅗ(8),ㅘ(9),ㅙ(10),ㅚ(11),
+            // ㅛ(12),ㅜ(13),ㅝ(14),ㅞ(15),ㅟ(16),ㅠ(17),ㅡ(18),ㅢ(19),ㅣ(20)
+            const baseVowelMap = {
+                // Target Index: [Base Index 1, Base Index 2]
+                   9: [8, 0],   // ㅘ (9): ㅗ (8), ㅏ (0)
+                  10: [8, 1],  // ㅙ (10): ㅗ (8), ㅐ (1)
+                  11: [8, 20], // ㅚ (11): ㅗ (8), ㅣ (20)  <-- Corrected target index from 13
+                  14: [13, 4], // ㅝ (14): ㅜ (13), ㅓ (4)  <-- Corrected base index from 12
+                  15: [13, 5], // ㅞ (15): ㅜ (13), ㅔ (5)  <-- Corrected base index from 12
+                  16: [13, 20],// ㅟ (16): ㅜ (13), ㅣ (20)  <-- Corrected target index from 18, base index from 12
+                  19: [18, 20] // ㅢ (19): ㅡ (18), ㅣ (20)  <-- Corrected base index from 17
+            };
+
+            // Return true if the target is a compound vowel and the input is one of its bases
+            return baseVowelMap[targetMedialIndex]?.includes(inputMedialIndex) || false;
+        }
+        // --- End of New Helper Function ---
 
         checkInput();
 
