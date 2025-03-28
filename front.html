@@ -1,339 +1,410 @@
 <div id="sentence-container">
     <div id="sentence-display"></div>
-<div id="measure"></div>
-<div>{{Translation}}</div>
-<button id="first-letter-hint-button">First Letter Hint</button>
-<button id="hint-button">Hint</button>
-<br>
-<div id="hint-display" style="font-size: 16px;">{{Hint}}</div>
+    <div id="measure"></div>
+    <div>{{Translation}}</div>
+    <button id="first-letter-hint-button">First Letter Hint</button>
+    <button id="hint-button">Hint</button>
+    <br>
+    <div id="hint-display" style="font-size: 16px;">{{Hint}}</div>
 
-<script>
-    // --- Configuration & Field Access ---
-    var sentenceField = `{{Sentence}}`;
-    var clozeWord = `{{Cloze}}`;
-    var translationField = `{{Translation}}`;
-    var hintField = `{{Hint}}`;
+    <script>
+        // --- Configuration & Field Access ---
+        var sentenceField = `{{Sentence}}`;
+        var clozeWord = `{{Cloze}}`;
+        var translationField = `{{Translation}}`;
+        var hintField = `{{Hint}}`;
 
-    // --- Element References ---
-    var sentenceContainer = document.getElementById('sentence-container');
-    var sentenceDisplay = document.getElementById('sentence-display');
-    var measure = document.getElementById('measure');
-    var hintDisplay = document.getElementById('hint-display');
-    var firstLetterHintButton = document.getElementById('first-letter-hint-button');
-    var hintButton = document.getElementById('hint-button');
+        // --- Element References ---
+        var sentenceContainer = document.getElementById('sentence-container');
+        var sentenceDisplay = document.getElementById('sentence-display');
+        var measure = document.getElementById('measure');
+        var hintDisplay = document.getElementById('hint-display');
+        var firstLetterHintButton = document.getElementById('first-letter-hint-button');
+        var hintButton = document.getElementById('hint-button');
 
-    // --- State Variables ---
-    var clozePlaceholder = "%%CLOZE_INPUT%%";
-    var inputBox = null;
-    var displayDiv = null;
-    var inputContainer = null;
+        // --- State Variables ---
+        var clozePlaceholder = "%%CLOZE_INPUT%%";
+        var inputBox = null;
+        var displayDiv = null;
+        var inputContainer = null;
 
-    // --- Initial Setup ---
-    var modifiedSentenceHTML;
-    var clozeWithBraces = "{" + clozeWord + "}";
-    if (sentenceField.includes(clozeWithBraces)) {
-        modifiedSentenceHTML = sentenceField.replace(clozeWithBraces, clozePlaceholder);
-    } else if (sentenceField.includes(clozeWord)) {
-        modifiedSentenceHTML = sentenceField.replace(clozeWord, clozePlaceholder);
-    } else {
-        modifiedSentenceHTML = sentenceField + " " + clozePlaceholder;
-        console.error("Cloze word not found in sentence field!");
-    }
-
-    sentenceDisplay.innerHTML = modifiedSentenceHTML;
-
-    createInputSimulation(); // Sets inputBox, displayDiv, inputContainer globally
-
-    var placeholderNode = findTextNode(sentenceDisplay, clozePlaceholder);
-    if (inputContainer && placeholderNode) {
-        placeholderNode.parentNode.replaceChild(inputContainer, placeholderNode);
-        inputBox = document.getElementById('real-input-box');
-        displayDiv = document.getElementById('char-display-div');
-        if (inputBox) {
-            inputBox.oninput = checkInput;
-            inputBox.onkeypress = handleEnter;
-            inputBox.onscroll = syncScroll;
-            inputBox.onfocus = handleFocus;
-            inputBox.onblur = handleBlur;
+        // --- Initial Setup ---
+        var modifiedSentenceHTML;
+        var clozeWithBraces = "{" + clozeWord + "}";
+        if (sentenceField.includes(clozeWithBraces)) {
+            modifiedSentenceHTML = sentenceField.replace(clozeWithBraces, clozePlaceholder);
+        } else if (sentenceField.includes(clozeWord)) {
+            modifiedSentenceHTML = sentenceField.replace(clozeWord, clozePlaceholder);
         } else {
-             console.error("Failed to find inputBox after replacement.");
+            modifiedSentenceHTML = sentenceField + " " + clozePlaceholder;
+            console.error("Cloze word not found in sentence field!");
         }
-    } else if (!inputContainer) {
-         console.error("Input container was not created successfully.");
-    } else {
-         console.warn("Placeholder text node not found directly, using innerHTML replacement fallback.");
-         var containerHTML = inputContainer.outerHTML;
-         sentenceDisplay.innerHTML = modifiedSentenceHTML.replace(clozePlaceholder, containerHTML);
-         inputBox = document.getElementById('real-input-box');
-         displayDiv = document.getElementById('char-display-div');
-         inputContainer = document.getElementById('input-simulation-container');
-         if (inputBox) {
-             inputBox.oninput = checkInput;
-             inputBox.onkeypress = handleEnter;
-             inputBox.onscroll = syncScroll;
-             inputBox.onfocus = handleFocus;
-             inputBox.onblur = handleBlur;
-         } else {
-             console.error("Failed to find inputBox after innerHTML fallback replacement.");
-         }
-    }
 
-    if (inputBox) {
-        inputBox.focus();
-    } else {
-        console.error("Cannot focus: Input box not found.");
-    }
+        sentenceDisplay.innerHTML = modifiedSentenceHTML;
 
-    // --- Core Functions ---
-    function createInputSimulation() {
-        measure.textContent = clozeWord;
-        var requiredWidth = measure.offsetWidth;
+        createInputSimulation(); // Sets inputBox, displayDiv, inputContainer globally
 
-        inputContainer = document.createElement('div');
-        inputContainer.id = 'input-simulation-container';
-        inputContainer.style.position = 'relative';
-        inputContainer.style.display = 'inline-block';
-        inputContainer.style.width = requiredWidth + 'px';
-        inputContainer.style.height = '30px';
-
-        displayDiv = document.createElement('div');
-        displayDiv.id = 'char-display-div';
-        displayDiv.style.position = 'absolute';
-        displayDiv.style.lineHeight = '26px';
-        displayDiv.style.textAlign = 'left';
-        displayDiv.style.left = '0';
-        displayDiv.style.top = '0';
-        displayDiv.style.width = '100%';
-        displayDiv.style.height = '100%';
-        displayDiv.style.fontSize = '25px';
-        displayDiv.style.fontFamily = 'arial';
-        displayDiv.style.padding = '2px';
-        displayDiv.style.boxSizing = 'border-box';
-        displayDiv.style.whiteSpace = 'pre';
-        displayDiv.style.overflow = 'hidden';
-        displayDiv.style.pointerEvents = 'none';
-
-        inputBox = document.createElement('input');
-        inputBox.type = 'text';
-        inputBox.id = 'real-input-box';
-        inputBox.autocomplete = 'off';
-        inputBox.spellcheck = false;
-        inputBox.style.position = 'absolute';
-             inputBox.style.lineHeight = '26px';
-        inputBox.style.left = '0';
-        inputBox.style.top = '0';
-        inputBox.style.width = '100%';
-        inputBox.style.height = '100%';
-        inputBox.style.fontSize = '25px';
-        inputBox.style.fontFamily = 'arial';
-        inputBox.style.padding = '2px';
-        inputBox.style.border = 'none';
-        inputBox.style.boxSizing = 'border-box';
-        inputBox.style.opacity = '1';
-        inputBox.style.color = 'transparent';
-        inputBox.style.backgroundColor = 'transparent';
-        inputBox.style.caretColor = 'black'; // Base caret color
-        inputBox.style.whiteSpace = 'pre';
-
-        inputContainer.appendChild(displayDiv);
-        inputContainer.appendChild(inputBox);
-
-        return inputContainer;
-    }
-
-function checkInput() {
-    if (!inputBox || !displayDiv) return;
-    var userInput = inputBox.value;
-    displayDiv.innerHTML = ''; // Clear previous content
-
-    for (var i = 0; i < userInput.length; i++) {
-        var charSpan = document.createElement('span');
-        var inputChar = userInput[i];
-        charSpan.textContent = inputChar;
-        var className = 'char-incorrect'; // Default to incorrect
-
-        if (i < clozeWord.length) {
-            var targetChar = clozeWord[i];
-
-            if (inputChar === targetChar) {
-                // Exact match
-                className = 'char-correct';
+        var placeholderNode = findTextNode(sentenceDisplay, clozePlaceholder);
+        if (inputContainer && placeholderNode) {
+            placeholderNode.parentNode.replaceChild(inputContainer, placeholderNode);
+            inputBox = document.getElementById('real-input-box');
+            displayDiv = document.getElementById('char-display-div');
+            if (inputBox) {
+                inputBox.oninput = checkInput;
+                inputBox.onkeypress = handleEnter;
+                inputBox.onscroll = syncScroll;
+                inputBox.onfocus = handleFocus;
+                inputBox.onblur = handleBlur;
             } else {
-                // Enhanced Hangul syllable check and incomplete matching
-                try {
-                    var targetCode = targetChar.charCodeAt(0);
-                    // Check if target is a Hangul syllable
-                    if (targetCode >= 0xAC00 && targetCode <= 0xD7A3) {
-                        var targetNFD = targetChar.normalize('NFD');
-                        var inputNFD = inputChar.normalize('NFD');
-
-                        //New logic to check for valid initial Jamo
-                        if(isInitialJamo(inputChar, targetChar)){
-                             className = 'char-incomplete';
-                        }
-                        else if (targetNFD.length > 1 && targetNFD !== inputNFD && targetNFD.startsWith(inputNFD)) {
-                            className = 'char-incomplete'; // Orange state
-                        }
-                        // Otherwise, it remains 'char-incorrect'
-                    }
-                    // If target is not a Hangul syllable, any mismatch is incorrect.
-                } catch (e) {
-                    // normalize() might fail in very old environments, default to incorrect
-                    console.error("Error during normalization:", e);
-                    className = 'char-incorrect';
-                }
+                console.error("Failed to find inputBox after replacement.");
             }
-        }
-        // If userInput is longer than clozeWord, extra chars are incorrect by default
-
-        charSpan.className = className;
-        displayDiv.appendChild(charSpan);
-    }
-    syncScroll(); // Sync scroll after updating content
-}
-
-function isInitialJamo(inputChar, targetSyllable) {
-    const targetCode = targetSyllable.charCodeAt(0);
-    if (targetCode < 0xAC00 || targetCode > 0xD7A3) return false;
-
-    const code = targetCode - 0xAC00;
-    const initialIndex = Math.floor(code / (21 * 28));
-    const compatibilityJamoMap = [0x3131, 0x3132, 0x3134, 0x3137, 0x3138, 0x3139, 0x3141, 0x3142, 0x3143, 0x3145, 0x3146, 0x3147, 0x3148, 0x3149, 0x314A, 0x314B, 0x314C, 0x314D, 0x314E];
-    if (initialIndex >= 0 && initialIndex < compatibilityJamoMap.length) {
-        const expectedJamo = String.fromCharCode(compatibilityJamoMap[initialIndex]);
-        return inputChar === expectedJamo;
-    }
-    return false;
-}
-
-    function syncScroll() {
-        if (inputBox && displayDiv) {
-            displayDiv.scrollLeft = inputBox.scrollLeft;
-        }
-    }
-
-    function handleEnter(e) {
-        if (e.keyCode === 13) {
-            e.preventDefault();
-            try { pycmd('ans'); } catch (er) {
-                try { pyLink('ans'); } catch (err) {
-                    console.error("Failed to trigger answer action.");
-                }
-            }
-        }
-    }
-
-    // --- Focus Handling Functions ---
-    function handleFocus() {
-        if (inputContainer) {
-            inputContainer.classList.add('is-focused');
-        }
-    }
-
-    function handleBlur() {
-        if (inputContainer) {
-            inputContainer.classList.remove('is-focused');
-        }
-    }
-
-    if (hintButton) {
-        hintButton.onmousedown = preventHintButtonFocusSteal;
-    }
-    if (firstLetterHintButton) {
-        firstLetterHintButton.onmousedown = preventHintButtonFocusSteal;
-    }
-
-    // --- Hint Functions ---
-hintButton.onclick = function() {
-        // Safety check for necessary elements/variables
-        if (!inputBox || typeof clozeWord === 'undefined') return;
-
-        var currentInput = inputBox.value;
-
-        // Check if there's a next character to reveal
-        if (currentInput.length < clozeWord.length) {
-            // Get the next full character/syllable from the cloze word
-            var nextCharOrSyllable = clozeWord[currentInput.length];
-
-            // Append it to the input box value
-            inputBox.value += nextCharOrSyllable;
-
-            // Update the visual feedback (coloring)
-            checkInput(); // Ensure checkInput is accessible
-
-            // Refocus the input box and move the cursor to the end,
-            // using setTimeout to ensure it happens after DOM updates.
-            setTimeout(() => {
-                if (inputBox) { // Check again inside timeout
-                     inputBox.focus();
-                     // Set cursor position to the end of the input
-                     inputBox.selectionStart = inputBox.selectionEnd = inputBox.value.length;
-                     // Sync scroll position if text overflows
-                     syncScroll(); // Ensure syncScroll is accessible
-                }
-            }, 0);
-        }
-    };
-
-    firstLetterHintButton.onclick = function() {
-        if (!inputBox) return;
-        var currentInput = inputBox.value;
-        if (typeof clozeWord !== 'undefined' && currentInput.length < clozeWord.length) {
-            var nextSyllable = clozeWord[currentInput.length];
-            var firstJamo = getFirstJamo(nextSyllable);
-            inputBox.value += firstJamo;
-            checkInput();
-            setTimeout(() => {
-                inputBox.focus();
-                inputBox.selectionStart = inputBox.selectionEnd = inputBox.value.length;
-                syncScroll();
-            }, 0);
-        }
-    };
-
-    function getFirstJamo(syllable) {
-        if (!syllable || syllable === ' ') return syllable || '';
-        var code = syllable.charCodeAt(0) - 0xAC00;
-        if (code < 0 || code > 11171) return syllable;
-        var initialIndex = Math.floor(code / (21 * 28));
-        const compatibilityJamoMap = [0x3131, 0x3132, 0x3134, 0x3137, 0x3138, 0x3139, 0x3141, 0x3142, 0x3143, 0x3145, 0x3146, 0x3147, 0x3148, 0x3149, 0x314A, 0x314B, 0x314C, 0x314D, 0x314E];
-        if (initialIndex >= 0 && initialIndex < compatibilityJamoMap.length) {
-            return String.fromCharCode(compatibilityJamoMap[initialIndex]);
+        } else if (!inputContainer) {
+            console.error("Input container was not created successfully.");
         } else {
-            return syllable;
-        }
-    }
-
-    // --- Utility Functions ---
-    function findTextNode(element, text) {
-        if (!element) return null;
-        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
-        let node;
-        while (node = walker.nextNode()) {
-            if (node.nodeValue.includes(text)) {
-                if (node.nodeValue.trim() !== text) {
-                    try {
-                        const index = node.nodeValue.indexOf(text);
-                        const newNode = node.splitText(index);
-                        newNode.splitText(text.length);
-                        return newNode;
-                    } catch (e) {
-                        console.error("Error splitting text node:", e);
-                        return node; // Fallback if split fails
-                    }
-                }
-                return node;
+            console.warn("Placeholder text node not found directly, using innerHTML replacement fallback.");
+            var containerHTML = inputContainer.outerHTML;
+            sentenceDisplay.innerHTML = modifiedSentenceHTML.replace(clozePlaceholder, containerHTML);
+            inputBox = document.getElementById('real-input-box');
+            displayDiv = document.getElementById('char-display-div');
+            inputContainer = document.getElementById('input-simulation-container');
+            if (inputBox) {
+                inputBox.oninput = checkInput;
+                inputBox.onkeypress = handleEnter;
+                inputBox.onscroll = syncScroll;
+                inputBox.onfocus = handleFocus;
+                inputBox.onblur = handleBlur;
+            } else {
+                console.error("Failed to find inputBox after innerHTML fallback replacement.");
             }
         }
-        return null;
-    }
 
-    function preventHintButtonFocusSteal(event) {
-        // Prevent the default behavior of mousedown, which includes taking focus
-        event.preventDefault();
-    }
+        if (inputBox) {
+            inputBox.focus();
+        } else {
+            console.error("Cannot focus: Input box not found.");
+        }
 
-    // --- Initial Execution ---
-    checkInput();
+        // --- Core Functions ---
+        function createInputSimulation() {
+            measure.textContent = clozeWord;
+            var requiredWidth = measure.offsetWidth;
 
-</script>
+            inputContainer = document.createElement('div');
+            inputContainer.id = 'input-simulation-container';
+            inputContainer.style.position = 'relative';
+            inputContainer.style.display = 'inline-block';
+            inputContainer.style.width = requiredWidth + 'px';
+            inputContainer.style.height = '30px';
+
+            displayDiv = document.createElement('div');
+            displayDiv.id = 'char-display-div';
+            displayDiv.style.position = 'absolute';
+            displayDiv.style.lineHeight = '26px';
+            displayDiv.style.textAlign = 'left';
+            displayDiv.style.left = '0';
+            displayDiv.style.top = '0';
+            displayDiv.style.width = '100%';
+            displayDiv.style.height = '100%';
+            displayDiv.style.fontSize = '25px';
+            displayDiv.style.fontFamily = 'arial';
+            displayDiv.style.padding = '2px';
+            displayDiv.style.boxSizing = 'border-box';
+            displayDiv.style.whiteSpace = 'pre';
+            displayDiv.style.overflow = 'hidden';
+            displayDiv.style.pointerEvents = 'none';
+
+            inputBox = document.createElement('input');
+            inputBox.type = 'text';
+            inputBox.id = 'real-input-box';
+            inputBox.autocomplete = 'off';
+            inputBox.spellcheck = false;
+            inputBox.style.position = 'absolute';
+            inputBox.style.lineHeight = '26px';
+            inputBox.style.left = '0';
+            inputBox.style.top = '0';
+            inputBox.style.width = '100%';
+            inputBox.style.height = '100%';
+            inputBox.style.fontSize = '25px';
+            inputBox.style.fontFamily = 'arial';
+            inputBox.style.padding = '2px';
+            inputBox.style.border = 'none';
+            inputBox.style.boxSizing = 'border-box';
+            inputBox.style.opacity = '1';
+            inputBox.style.color = 'transparent';
+            inputBox.style.backgroundColor = 'transparent';
+            inputBox.style.caretColor = 'grey'; // Base caret color
+            inputBox.style.whiteSpace = 'pre';
+
+            inputContainer.appendChild(displayDiv);
+            inputContainer.appendChild(inputBox);
+
+            return inputContainer;
+        }
+
+        function checkInput() {
+            if (!inputBox || !displayDiv) return;
+            var userInput = inputBox.value;
+            displayDiv.innerHTML = ''; // Clear previous content
+
+            for (var i = 0; i < userInput.length; i++) {
+                var charSpan = document.createElement('span');
+                var inputChar = userInput[i];
+
+                // Use &nbsp; for spaces to help ensure width for background color
+                charSpan.innerHTML = (inputChar === ' ') ? '&nbsp;' : inputChar;
+                var className = 'char-incorrect'; // Default to incorrect
+
+                if (i < clozeWord.length) {
+                    var targetChar = clozeWord[i];
+
+                    if (inputChar === targetChar) {
+                        // Exact match
+                        className = 'char-correct';
+                    } else {
+                        // --- Check specifically for an incorrect space ---
+                        if (inputChar === ' ') { // Target must be different, checked by inputChar !== targetChar
+                            className = 'char-incorrect-space';
+                        }
+                        // --- If not an incorrect space, proceed with other checks (Hangul) ---
+                        else {
+                            try {
+                                let targetCode = targetChar.charCodeAt(0);
+                                let inputCode = inputChar.charCodeAt(0);
+                                let isTargetSyllable = targetCode >= 0xAC00 && targetCode <= 0xD7A3;
+
+                                // Get initial consonant indices
+                                let targetInitialIndex = getFirstJamoIndex(targetChar);
+                                let inputInitialIndex = getFirstJamoIndex(inputChar);
+
+                                // Check if input is just an initial consonant (not a full syllable)
+                                let isInputJustInitial = inputInitialIndex !== null && !(inputCode >= 0xAC00 && inputCode <= 0xD7A3);
+
+                                // Scenario 1: Input is just the initial consonant matching the target's initial
+                                if (isTargetSyllable && isInputJustInitial && targetInitialIndex === inputInitialIndex) {
+                                    className = 'char-incomplete';
+                                }
+                                // Scenario 2: Input is a syllable, compare with target syllable
+                                else {
+                                    let isInputSyllable = inputCode >= 0xAC00 && inputCode <= 0xD7A3;
+
+                                    if (isTargetSyllable && isInputSyllable) {
+                                        let targetMedialIndex = getMedialJamoIndex(targetChar);
+                                        let inputMedialIndex = getMedialJamoIndex(inputChar);
+                                        let targetFinalIndex = getFinalJamoIndex(targetChar); // 0 means no final
+                                        let inputFinalIndex = getFinalJamoIndex(inputChar);   // 0 means no final
+
+                                        // Check for partial match (same initial & medial, input lacks final, target has final)
+                                        if (targetInitialIndex !== null &&
+                                            targetInitialIndex === inputInitialIndex &&
+                                            targetMedialIndex !== null &&
+                                            targetMedialIndex === inputMedialIndex &&
+                                            inputFinalIndex === 0 &&
+                                            targetFinalIndex !== null && targetFinalIndex !== 0) {
+                                            className = 'char-incomplete';
+                                        } else {
+                                            // If conditions for incomplete are not met, it's incorrect
+                                            className = 'char-incorrect';
+                                        }
+                                    } else {
+                                        // If target isn't a syllable, or input isn't a syllable (and wasn't just a matching initial),
+                                        // it's simply incorrect based on the initial inputChar !== targetChar check.
+                                        className = 'char-incorrect';
+                                    }
+                                } // End of syllable vs syllable comparison
+
+                            } catch (e) {
+                                console.error("Error during Hangul check:", e);
+                                className = 'char-incorrect'; // Default to incorrect on error
+                            }
+                        } // --- End of non-space mismatch checks ---
+                    }
+                } else { // Input is longer than cloze word
+                    if (inputChar === ' ') {
+                        className = 'char-incorrect-space'; // Reuse incorrect space style
+                        charSpan.innerHTML = '&nbsp;'; // Ensure width
+                    } else {
+                        className = 'char-incorrect'; // Default incorrect for extra chars
+                    }
+                }
+
+                // Assign the determined class and append the span
+                charSpan.className = className;
+                displayDiv.appendChild(charSpan);
+            }
+            syncScroll(); // Sync scroll after updating content
+        }
+
+        function getFirstJamoIndex(char) {
+            if (!char) return null;
+            const code = char.charCodeAt(0);
+
+            if (code >= 0xAC00 && code <= 0xD7A3) {
+                // It's a complete Hangul Syllable
+                return Math.floor((code - 0xAC00) / 588); // 588 = 21 * 28
+            } else {
+                // Check if it's a Hangul Compatibility Jamo consonant
+                const compatibilityJamoMap = [
+                    0x3131, 0x3132, 0x3134, 0x3137, 0x3138, 0x3139, 0x3141, 0x3142,
+                    0x3143, 0x3145, 0x3146, 0x3147, 0x3148, 0x3149, 0x314A, 0x314B,
+                    0x314C, 0x314D, 0x314E
+                ];
+                const index = compatibilityJamoMap.indexOf(code);
+                return (index !== -1) ? index : null; // Return index 0-18 if found, else null
+            }
+        }
+
+        function getMedialJamoIndex(char) {
+            if (!char) return null;
+            const code = char.charCodeAt(0);
+            if (code >= 0xAC00 && code <= 0xD7A3) {
+                // It's a complete Hangul Syllable
+                return Math.floor(((code - 0xAC00) % 588) / 28);
+            }
+            // Medial vowels don't typically exist as standalone Jamo in the same way initials do
+            // in standard input methods relevant here, so we only check syllables.
+            return null;
+        }
+
+        function getFinalJamoIndex(char) {
+            if (!char) return null;
+            const code = char.charCodeAt(0);
+            if (code >= 0xAC00 && code <= 0xD7A3) {
+                // It's a complete Hangul Syllable
+                const finalIndex = (code - 0xAC00) % 28;
+                // Index 0 represents *no* final consonant. We return it as is.
+                return finalIndex;
+            }
+            // Final consonants don't typically exist as standalone Jamo in the same way initials do.
+            return null;
+        }
+
+        function syncScroll() {
+            if (inputBox && displayDiv) {
+                displayDiv.scrollLeft = inputBox.scrollLeft;
+            }
+        }
+
+        function handleEnter(e) {
+            if (e.keyCode === 13) {
+                e.preventDefault();
+                try { pycmd('ans'); } catch (er) {
+                    try { pyLink('ans'); } catch (err) {
+                        console.error("Failed to trigger answer action.");
+                    }
+                }
+            }
+        }
+
+        // --- Focus Handling Functions ---
+        function handleFocus() {
+            if (inputContainer) {
+                inputContainer.classList.add('is-focused');
+            }
+        }
+
+        function handleBlur() {
+            if (inputContainer) {
+                inputContainer.classList.remove('is-focused');
+            }
+        }
+
+        if (hintButton) {
+            hintButton.onmousedown = preventHintButtonFocusSteal;
+        }
+        if (firstLetterHintButton) {
+            firstLetterHintButton.onmousedown = preventHintButtonFocusSteal;
+        }
+
+        // --- Hint Functions ---
+        hintButton.onclick = function () {
+            // Safety check for necessary elements/variables
+            if (!inputBox || typeof clozeWord === 'undefined') return;
+
+            var currentInput = inputBox.value;
+
+            // Check if there's a next character to reveal
+            if (currentInput.length < clozeWord.length) {
+                // Get the next full character/syllable from the cloze word
+                var nextCharOrSyllable = clozeWord[currentInput.length];
+
+                // Append it to the input box value
+                inputBox.value += nextCharOrSyllable;
+
+                // Update the visual feedback (coloring)
+                checkInput(); // Ensure checkInput is accessible
+
+                // Refocus the input box and move the cursor to the end,
+                // using setTimeout to ensure it happens after DOM updates.
+                setTimeout(() => {
+                    if (inputBox) { // Check again inside timeout
+                        inputBox.focus();
+                        // Set cursor position to the end of the input
+                        inputBox.selectionStart = inputBox.selectionEnd = inputBox.value.length;
+                        // Sync scroll position if text overflows
+                        syncScroll(); // Ensure syncScroll is accessible
+                    }
+                }, 0);
+            }
+        };
+
+        firstLetterHintButton.onclick = function () {
+            if (!inputBox) return;
+            var currentInput = inputBox.value;
+            if (typeof clozeWord !== 'undefined' && currentInput.length < clozeWord.length) {
+                var nextSyllable = clozeWord[currentInput.length];
+                var firstJamo = getFirstJamo(nextSyllable);
+                inputBox.value += firstJamo;
+                checkInput();
+                setTimeout(() => {
+                    inputBox.focus();
+                    inputBox.selectionStart = inputBox.selectionEnd = inputBox.value.length;
+                    syncScroll();
+                }, 0);
+            }
+        };
+
+        function getFirstJamo(syllable) {
+            if (!syllable || syllable === ' ') return syllable || '';
+            var code = syllable.charCodeAt(0) - 0xAC00;
+            if (code < 0 || code > 11171) return syllable;
+            var initialIndex = Math.floor(code / (21 * 28));
+            const compatibilityJamoMap = [0x3131, 0x3132, 0x3134, 0x3137, 0x3138, 0x3139, 0x3141, 0x3142, 0x3143, 0x3145, 0x3146, 0x3147, 0x3148, 0x3149, 0x314A, 0x314B, 0x314C, 0x314D, 0x314E];
+            if (initialIndex >= 0 && initialIndex < compatibilityJamoMap.length) {
+                return String.fromCharCode(compatibilityJamoMap[initialIndex]);
+            } else {
+                return syllable;
+            }
+        }
+
+        // --- Utility Functions ---
+        function findTextNode(element, text) {
+            if (!element) return null;
+            const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+            let node;
+            while (node = walker.nextNode()) {
+                if (node.nodeValue.includes(text)) {
+                    if (node.nodeValue.trim() !== text) {
+                        try {
+                            const index = node.nodeValue.indexOf(text);
+                            const newNode = node.splitText(index);
+                            newNode.splitText(text.length);
+                            return newNode;
+                        } catch (e) {
+                            console.error("Error splitting text node:", e);
+                            return node; // Fallback if split fails
+                        }
+                    }
+                    return node;
+                }
+            }
+            return null;
+        }
+
+        function preventHintButtonFocusSteal(event) {
+            // Prevent the default behavior of mousedown, which includes taking focus
+            event.preventDefault();
+        }
+
+        checkInput();
+
+    </script>

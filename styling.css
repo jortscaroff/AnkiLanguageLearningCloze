@@ -2,7 +2,6 @@
   font-family: arial;
   font-size: 25px;
   text-align: center;
-  /* CSS variables for theme colors */
   --input-border-color: #ccc;
   --input-focus-border-color: #4D90FE;
   --text-color: black;
@@ -30,13 +29,12 @@
 
 #real-input-box {
   outline: none;
-  border: none; /* Border is on displayDiv */
+  border: none;
 }
 
 #char-display-div {
   cursor: text;
   border: 1px solid var(--input-border-color);
-  /* Other essential styles like position, size, font, padding, box-sizing are set via JS */
 }
 
 #measure {
@@ -45,7 +43,6 @@
      font-size: 25px;
 }
 
-/* Focus styling via the container class */
 .input-simulation-container.is-focused #char-display-div {
   border-color: var(--input-focus-border-color);
 }
@@ -63,43 +60,60 @@
 }
 
 .char-incomplete {
-  color: orange; /* Or your preferred shade of orange */
+  color: orange;
 }
 
 .nightMode .char-incomplete {
-  color: #FFA500; /* Adjust orange for night mode visibility if needed */
+  color: #ffc863;
 }
 
-/* --- Night Mode Adjustments --- */
-
 .nightMode .card {
-  /* Update CSS variables for night mode */
   --input-border-color: #777;
-  /* --input-focus-border-color: lightblue; */ /* Optional: different focus color for night */
   --text-color: white;
   --bg-color: #2d2d2d;
-  --char-correct-color: lightgreen;
-  --char-incorrect-color: #ff6e67;
   --highlight-color: lightgreen;
   --button-bg-color: #555;
   --button-border-color: #777;
   --button-text-color: white;
 }
 
-/* Caret color for night mode */
+.nightMode {
+  --char-correct-color: lightgreen;
+  --char-incorrect-color: #ff6e67;
+  --highlight-color: lightgreen;
+}
+
 .nightMode #real-input-box {
     caret-color: white;
 }
 
-/* Buttons in night mode */
 .nightMode button {
     background-color: var(--button-bg-color);
     color: var(--button-text-color);
     border: 1px solid var(--button-border-color);
 }
 
-/* Highlight style (uses variable) */
 .highlight {
   color: var(--highlight-color);
   font-weight: bold;
+}
+
+.char-incorrect-space {
+  background-color: var(--char-incorrect-color);
+  color: white;
+  display: inline-block;
+  vertical-align: bottom;
+  min-width: 0.3em;
+  margin: 0 1px;
+}
+
+.nightMode .char-incorrect-space {
+   background-color: var(--char-incorrect-color);
+   color: black;
+}
+
+
+#char-display-div span {
+   display: inline-block;
+   vertical-align: bottom;
 }
