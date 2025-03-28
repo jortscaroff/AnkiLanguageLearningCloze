@@ -171,69 +171,81 @@
                                 let targetCode = targetChar.charCodeAt(0);
                                 let inputCode = inputChar.charCodeAt(0);
                                 let isTargetSyllable = targetCode >= 0xAC00 && targetCode <= 0xD7A3;
+                                let isInputSyllable = inputCode >= 0xAC00 && inputCode <= 0xD7A3;
 
-                                // Get initial consonant indices
+                                // Get Jamo indices
                                 let targetInitialIndex = getFirstJamoIndex(targetChar);
                                 let inputInitialIndex = getFirstJamoIndex(inputChar);
+                                let targetMedialIndex = getMedialJamoIndex(targetChar);
+                                let inputMedialIndex = getMedialJamoIndex(inputChar);
+                                let targetFinalIndex = getFinalJamoIndex(targetChar); // 0 means no final
+                                let inputFinalIndex = getFinalJamoIndex(inputChar);   // 0 means no final
 
                                 // Check if input is just an initial consonant (not a full syllable)
-                                let isInputJustInitial = inputInitialIndex !== null && !(inputCode >= 0xAC00 && inputCode <= 0xD7A3);
+                                let isInputJustInitial = inputInitialIndex !== null && !isInputSyllable;
+
+                                // --- Logging Start ---
+                                // console.log(`--- Comparing: Input='${inputChar}' Target='${targetChar}' ---`);
+                                // console.log(`Indices: I(${inputInitialIndex}/${targetInitialIndex}) M(${inputMedialIndex}/${targetMedialIndex}) F(${inputFinalIndex}/${targetFinalIndex})`);
+                                // console.log(`Is Syllable: Input=${isInputSyllable}, Target=${isTargetSyllable}`);
+                                // console.log(`Is Input Just Initial: ${isInputJustInitial}`);
+                                // --- Logging End ---
 
                                 // Scenario 1: Input is just the initial consonant matching the target's initial
                                 if (isTargetSyllable && isInputJustInitial && targetInitialIndex === inputInitialIndex) {
                                     className = 'char-incomplete';
                                 }
-                                // Scenario 2: Input is a syllable, compare with target syllable
-                                else {
-                                    let isInputSyllable = inputCode >= 0xAC00 && inputCode <= 0xD7A3;
+                                // Scenario 2: Both are syllables, compare them
+                                else if (isTargetSyllable && isInputSyllable) {
+                                    if (targetInitialIndex === inputInitialIndex) {
+                                        // Initials match
+                                        if (targetMedialIndex === inputMedialIndex) {
+                                            // Initials and Medials match. Check finals.
 
-                                    if (isTargetSyllable && isInputSyllable) {
-                                        let targetMedialIndex = getMedialJamoIndex(targetChar);
-                                        let inputMedialIndex = getMedialJamoIndex(inputChar);
-                                        let targetFinalIndex = getFinalJamoIndex(targetChar); // 0 means no final
-                                        let inputFinalIndex = getFinalJamoIndex(inputChar);   // 0 means no final
-
-                                        // Check if initials match
-                                        if (targetInitialIndex !== null && targetInitialIndex === inputInitialIndex) {
-                                            // Initials match. Now check medials and finals.
-                                            if (targetMedialIndex !== null && targetMedialIndex === inputMedialIndex) {
-                                                // Initials and Medials match. Check finals.
-                                                if (inputFinalIndex === 0 && targetFinalIndex !== null && targetFinalIndex !== 0) {
-                                                    // Input lacks final, target has final (e.g., '가' vs '각')
-                                                    className = 'char-incomplete';
-                                                } else if (inputFinalIndex !== targetFinalIndex) {
-                                                    // Finals mismatch (e.g., '각' vs '간')
+                                            // --- Specific Check for 업 vs 없 ---
+                                            if (inputChar === '업' && targetChar === '없') {
+                                                // console.log("-> Specific Case: 업 vs 없 -> Incomplete"); // Add for debugging if needed
+                                                className = 'char-incomplete';
+                                            }
+                                            // --- General Final Consonant Logic ---
+                                            else {
+                                                if (targetFinalIndex === inputFinalIndex) {
+                                                    // Finals match. Should have been caught by exact match earlier.
                                                     className = 'char-incorrect';
-                                                }
-                                                // If finals also match (inputFinalIndex === targetFinalIndex),
-                                                // it implies inputChar === targetChar, which was handled earlier.
-                                                // If somehow reached here, treat as incorrect.
-                                                else {
-                                                     className = 'char-incorrect';
-                                                }
-                                            } else if (targetMedialIndex !== null && inputMedialIndex !== null && isBaseMedialVowel(inputMedialIndex, targetMedialIndex)) {
-                                                // Initials match, Input Medial is a base component of Target Medial (e.g., '호' vs '회')
-                                                if (inputFinalIndex === 0) {
-                                                    // If input has no final consonant, consider it incomplete.
+                                                } else if ((inputFinalIndex === 0 && targetFinalIndex !== 0) || isBaseFinalConsonant(inputFinalIndex, targetFinalIndex)) {
+                                                    // Incomplete if:
+                                                    // 1. Input lacks final, target has final (e.g., '가' vs '각')
+                                                    // 2. Input final is the base of a compound target final (e.g., '업' vs '없')
+                                                    // Note: The specific check above should handle 업/없, but keep general logic.
                                                     className = 'char-incomplete';
                                                 } else {
-                                                    // Input has a final, but medials are only base-related. Incorrect.
+                                                    // Any other final mismatch (e.g., '각' vs '간')
                                                     className = 'char-incorrect';
                                                 }
+                                            }
+                                        } else if (isBaseMedialVowel(inputMedialIndex, targetMedialIndex)) {
+                                            // Initials match, Medial is base of target medial
+                                            if (inputFinalIndex === 0) {
+                                                // And input has no final (e.g., '호' vs '회')
+                                                className = 'char-incomplete';
                                             } else {
-                                                // Initials match, but Medials are unrelated. Incorrect.
+                                                // Base medial but input has final - incorrect (e.g., '혹' vs '회')
                                                 className = 'char-incorrect';
                                             }
                                         } else {
-                                            // Initials do not match. Incorrect.
+                                            // Initials match, but Medials mismatch (and not base)
                                             className = 'char-incorrect';
                                         }
                                     } else {
-                                        // If target isn't a syllable, or input isn't a syllable (and wasn't just a matching initial),
-                                        // it's simply incorrect based on the initial inputChar !== targetChar check.
+                                        // Initials mismatch
                                         className = 'char-incorrect';
                                     }
-                                } // End of syllable vs syllable comparison
+                                }
+                                // Scenario 3: Other mismatches (e.g., non-syllable vs syllable, non-Hangul)
+                                else {
+                                     // Default to incorrect if not handled by Scenario 1 or 2
+                                     className = 'char-incorrect';
+                                }
 
                             } catch (e) {
                                 console.error("Error during Hangul check:", e);
@@ -452,6 +464,36 @@
 
             // Return true if the target is a compound vowel and the input is one of its bases
             return baseVowelMap[targetMedialIndex]?.includes(inputMedialIndex) || false;
+        }
+        // --- End of New Helper Function ---
+
+        // --- New Helper Function for Final Consonant Relationships ---
+        function isBaseFinalConsonant(inputFinalIndex, targetFinalIndex) {
+            // Indices must be valid and non-zero (representing actual consonants)
+            if (inputFinalIndex === null || inputFinalIndex === 0 || targetFinalIndex === null || targetFinalIndex === 0) return false;
+            // Not interested if they are identical
+            if (inputFinalIndex === targetFinalIndex) return false;
+
+            // Map of compound finals (targetFinalIndex) to their first base consonant (inputFinalIndex)
+            // ㄱ(1), ㄲ(2), ㄳ(3), ㄴ(4), ㄵ(5), ㄶ(6), ㄷ(7), ㄹ(8), ㄺ(9), ㄻ(10),
+            // ㄼ(11), ㄽ(12), ㄾ(13), ㄿ(14), ㅀ(15), ㅂ(16), ㅄ(17), ㅅ(18), ㅆ(19),
+            // ㅇ(20), ㅈ(21), ㅊ(22), ㅋ(23), ㅌ(24), ㅍ(25), ㅎ(26)
+            const baseFinalMap = {
+                 3: 1,  // ㄳ (3): ㄱ (1)
+                 5: 4,  // ㄵ (5): ㄴ (4)
+                 6: 4,  // ㄶ (6): ㄴ (4)
+                 9: 8,  // ㄺ (9): ㄹ (8)
+                10: 8,  // ㄻ (10): ㄹ (8)
+                11: 8,  // ㄼ (11): ㄹ (8)
+                12: 8,  // ㄽ (12): ㄹ (8)
+                13: 8,  // ㄾ (13): ㄹ (8)
+                14: 8,  // ㄿ (14): ㄹ (8)
+                15: 8,  // ㅀ (15): ㄹ (8)
+                17: 16  // ㅄ (17): ㅂ (16)
+            };
+
+            // Return true if the target is a compound final and the input is its first base consonant
+            return baseFinalMap[targetFinalIndex] === inputFinalIndex;
         }
         // --- End of New Helper Function ---
 
