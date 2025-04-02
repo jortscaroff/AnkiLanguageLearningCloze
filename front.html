@@ -28,14 +28,73 @@
         var displayDiv = null;
         var inputContainer = null;
 
+        // --- Helper Functions for Text Normalization ---
+        function normalizeText(text) {
+            if (!text) return '';
+
+            // First normalize using NFD to handle accented characters
+            let normalized = text.normalize('NFD');
+
+            // Handle different types of apostrophes and quotes
+            normalized = normalized.replace(/[''′`´]/g, "'");
+
+            return normalized;
+        }
+
         // --- Initial Setup ---
         var modifiedSentenceHTML;
-        var clozeWithBraces = "{" + clozeWord + "}";
-        if (sentenceField.includes(clozeWithBraces)) {
-            modifiedSentenceHTML = sentenceField.replace(clozeWithBraces, clozePlaceholder);
-        } else if (sentenceField.includes(clozeWord)) {
-            modifiedSentenceHTML = sentenceField.replace(clozeWord, clozePlaceholder);
+
+        // First, try to find a pattern with curly braces in the sentence
+        var bracesRegex = /\{([^}]+)\}/g;
+        var bracesMatches = [];
+        var match;
+
+        // Collect all text within curly braces in the sentence
+        while ((match = bracesRegex.exec(sentenceField)) !== null) {
+            bracesMatches.push({
+                fullMatch: match[0],      // The entire match including braces
+                innerText: match[1],      // Just the text inside braces
+                startIndex: match.index,  // Start position of the match
+                endIndex: match.index + match[0].length // End position of the match
+            });
+        }
+
+        // Check if any of the braced text matches our cloze word when normalized
+        var normalizedClozeWord = normalizeText(clozeWord);
+        var matchFound = false;
+        var matchIndex = -1;
+        var matchLength = 0;
+
+        // First, check for matches within curly braces
+        for (var i = 0; i < bracesMatches.length; i++) {
+            var normalizedBracedText = normalizeText(bracesMatches[i].innerText);
+            if (normalizedBracedText === normalizedClozeWord) {
+                matchFound = true;
+                matchIndex = bracesMatches[i].startIndex;
+                matchLength = bracesMatches[i].fullMatch.length;
+                break;
+            }
+        }
+
+        // If no match found in braces, try direct match in the sentence
+        if (!matchFound) {
+            var normalizedSentence = normalizeText(sentenceField);
+            var directMatchIndex = normalizedSentence.indexOf(normalizedClozeWord);
+
+            if (directMatchIndex !== -1) {
+                matchFound = true;
+                matchIndex = directMatchIndex;
+                matchLength = clozeWord.length;
+            }
+        }
+
+        // Create the modified sentence based on match results
+        if (matchFound) {
+            modifiedSentenceHTML = sentenceField.substring(0, matchIndex) +
+                                  clozePlaceholder +
+                                  sentenceField.substring(matchIndex + matchLength);
         } else {
+            // No match found, append placeholder to the end
             modifiedSentenceHTML = sentenceField + " " + clozePlaceholder;
             console.error("Cloze word not found in sentence field!");
         }
@@ -157,9 +216,13 @@
                 if (i < clozeWord.length) {
                     var targetChar = clozeWord[i];
 
-                    // Compare lowercase versions for case-insensitivity
-                    if (inputChar.toLowerCase() === targetChar.toLowerCase()) {
-                        // Exact match (case-insensitive)
+                    // Normalize both characters for comparison
+                    var normalizedInput = normalizeText(inputChar.toLowerCase());
+                    var normalizedTarget = normalizeText(targetChar.toLowerCase());
+
+                    // Compare normalized versions for case-insensitivity and accent-insensitivity
+                    if (normalizedInput === normalizedTarget) {
+                        // Exact match (case-insensitive, accent-insensitive)
                         className = 'char-correct';
                     } else {
                         // --- Check specifically for an incorrect space ---
@@ -169,6 +232,7 @@
                         // --- If not an incorrect space, proceed with other checks (Hangul) ---
                         else {
                             try {
+                                // Use original characters for Hangul checks, not normalized ones
                                 let targetCode = targetChar.charCodeAt(0);
                                 let inputCode = inputChar.charCodeAt(0);
                                 let isTargetSyllable = targetCode >= 0xAC00 && targetCode <= 0xD7A3;
