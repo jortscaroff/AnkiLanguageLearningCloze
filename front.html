@@ -157,8 +157,9 @@
                 if (i < clozeWord.length) {
                     var targetChar = clozeWord[i];
 
-                    if (inputChar === targetChar) {
-                        // Exact match
+                    // Compare lowercase versions for case-insensitivity
+                    if (inputChar.toLowerCase() === targetChar.toLowerCase()) {
+                        // Exact match (case-insensitive)
                         className = 'char-correct';
                     } else {
                         // --- Check specifically for an incorrect space ---
@@ -184,13 +185,6 @@
                                 // Check if input is just an initial consonant (not a full syllable)
                                 let isInputJustInitial = inputInitialIndex !== null && !isInputSyllable;
 
-                                // --- Logging Start ---
-                                // console.log(`--- Comparing: Input='${inputChar}' Target='${targetChar}' ---`);
-                                // console.log(`Indices: I(${inputInitialIndex}/${targetInitialIndex}) M(${inputMedialIndex}/${targetMedialIndex}) F(${inputFinalIndex}/${targetFinalIndex})`);
-                                // console.log(`Is Syllable: Input=${isInputSyllable}, Target=${isTargetSyllable}`);
-                                // console.log(`Is Input Just Initial: ${isInputJustInitial}`);
-                                // --- Logging End ---
-
                                 // Scenario 1: Input is just the initial consonant matching the target's initial
                                 if (isTargetSyllable && isInputJustInitial && targetInitialIndex === inputInitialIndex) {
                                     className = 'char-incomplete';
@@ -204,7 +198,6 @@
 
                                             // --- Specific Check for 업 vs 없 ---
                                             if (inputChar === '업' && targetChar === '없') {
-                                                // console.log("-> Specific Case: 업 vs 없 -> Incomplete"); // Add for debugging if needed
                                                 className = 'char-incomplete';
                                             }
                                             // --- General Final Consonant Logic ---
