@@ -35,8 +35,18 @@
             // First normalize using NFD to handle accented characters
             let normalized = text.normalize('NFD');
 
-            // Handle different types of apostrophes and quotes
-            normalized = normalized.replace(/[''′`´]/g, "'");
+            // Handle a comprehensive set of apostrophes, quotes, and similar characters
+            // This includes straight/curly/typographic quotes, apostrophes, primes, backticks, etc.
+            normalized = normalized.replace(/[''′`´''‛′″‵ʹʻʼʽʾʿˈˊˋ˴''""„‟]/g, "'");
+
+            // Normalize various dash characters
+            normalized = normalized.replace(/[\u2012-\u2015\u2053]/g, "-");
+
+            // Normalize various space characters (non-breaking spaces, thin spaces, etc.)
+            normalized = normalized.replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, " ");
+
+            // Normalize multiple consecutive spaces to a single space
+            normalized = normalized.replace(/\s+/g, " ");
 
             return normalized;
         }
@@ -72,6 +82,10 @@
                 matchFound = true;
                 matchIndex = bracesMatches[i].startIndex;
                 matchLength = bracesMatches[i].fullMatch.length;
+
+                // Log successful match for debugging
+                console.log('Matched braced text:', bracesMatches[i].innerText, 'with cloze word:', clozeWord);
+                console.log('Normalized forms:', normalizedBracedText, normalizedClozeWord);
                 break;
             }
         }
@@ -82,9 +96,89 @@
             var directMatchIndex = normalizedSentence.indexOf(normalizedClozeWord);
 
             if (directMatchIndex !== -1) {
+                // Calculate the actual match length in the original text
+                // This handles cases where normalization changes character count
+                var originalSubstring = sentenceField.substring(directMatchIndex, directMatchIndex + clozeWord.length * 2); // Use a larger window to be safe
+                var normalizedSubstring = normalizeText(originalSubstring);
+                var actualMatchLength = 0;
+
+                // Find the shortest substring that normalizes to match the cloze word
+                for (var i = 1; i <= originalSubstring.length; i++) {
+                    var testSubstring = originalSubstring.substring(0, i);
+                    if (normalizeText(testSubstring) === normalizedClozeWord) {
+                        actualMatchLength = testSubstring.length;
+                        break;
+                    }
+                }
+
+                // If we couldn't determine the actual length, fall back to the cloze word length
+                if (actualMatchLength === 0) {
+                    actualMatchLength = clozeWord.length;
+                }
+
                 matchFound = true;
                 matchIndex = directMatchIndex;
-                matchLength = clozeWord.length;
+                matchLength = actualMatchLength;
+
+                // Log successful direct match for debugging
+                console.log('Direct match found at index:', directMatchIndex);
+                console.log('Original substring:', originalSubstring);
+                console.log('Actual match length:', actualMatchLength);
+                console.log('Normalized forms:', normalizedSubstring.substring(0, normalizedClozeWord.length), normalizedClozeWord);
+            } else {
+                // Fallback: Try an even more aggressive normalization approach
+                // This will strip all non-alphanumeric characters and try to match again
+                var aggressiveNormalizeSentence = normalizedSentence.replace(/[^\p{L}\p{N}\s]/gu, '');
+                var aggressiveNormalizeCloze = normalizedClozeWord.replace(/[^\p{L}\p{N}\s]/gu, '');
+
+                // Only proceed if we have meaningful content after aggressive normalization
+                if (aggressiveNormalizeCloze.trim().length > 0) {
+                    var aggressiveMatchIndex = aggressiveNormalizeSentence.indexOf(aggressiveNormalizeCloze);
+
+                    if (aggressiveMatchIndex !== -1) {
+                        console.log('Found match using aggressive normalization');
+                        console.log('Aggressive normalized sentence:', aggressiveNormalizeSentence);
+                        console.log('Aggressive normalized cloze:', aggressiveNormalizeCloze);
+
+                        // Now we need to map this back to the original text
+                        // Count non-alphanumeric characters before the match to adjust the index
+                        var charCount = 0;
+                        var originalIndex = 0;
+
+                        for (var i = 0; i < normalizedSentence.length && charCount < aggressiveMatchIndex; i++) {
+                            if (/[\p{L}\p{N}\s]/u.test(normalizedSentence[i])) {
+                                charCount++;
+                            }
+                            originalIndex++;
+                        }
+
+                        // Use a similar approach to find the actual match length
+                        var originalSubstring = sentenceField.substring(originalIndex, originalIndex + clozeWord.length * 2);
+                        var actualMatchLength = 0;
+
+                        // Find the shortest substring that aggressively normalizes to match the cloze word
+                        for (var i = 1; i <= originalSubstring.length; i++) {
+                            var testSubstring = originalSubstring.substring(0, i);
+                            if (normalizeText(testSubstring).replace(/[^\p{L}\p{N}\s]/gu, '') === aggressiveNormalizeCloze) {
+                                actualMatchLength = testSubstring.length;
+                                break;
+                            }
+                        }
+
+                        // If we couldn't determine the actual length, fall back to the cloze word length
+                        if (actualMatchLength === 0) {
+                            actualMatchLength = clozeWord.length;
+                        }
+
+                        matchFound = true;
+                        matchIndex = originalIndex;
+                        matchLength = actualMatchLength;
+
+                        console.log('Aggressive match mapped to original text at index:', originalIndex);
+                        console.log('Original substring:', originalSubstring);
+                        console.log('Actual match length:', actualMatchLength);
+                    }
+                }
             }
         }
 
