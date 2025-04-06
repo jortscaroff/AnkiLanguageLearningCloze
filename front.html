@@ -48,137 +48,69 @@
             // Normalize multiple consecutive spaces to a single space
             normalized = normalized.replace(/\s+/g, " ");
 
+            // Remove Unicode variation selectors (often invisible, can cause mismatches)
+            normalized = normalized.replace(/[\uFE00-\uFE0F]/g, '');
+
+            // Remove zero-width spaces and joiners
+            normalized = normalized.replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+            // Trim leading/trailing whitespace
+            normalized = normalized.trim();
+
             return normalized;
         }
 
         // --- Initial Setup ---
         var modifiedSentenceHTML;
-
-        // First, try to find a pattern with curly braces in the sentence
-        var bracesRegex = /\{([^}]+)\}/g;
-        var bracesMatches = [];
-        var match;
-
-        // Collect all text within curly braces in the sentence
-        while ((match = bracesRegex.exec(sentenceField)) !== null) {
-            bracesMatches.push({
-                fullMatch: match[0],      // The entire match including braces
-                innerText: match[1],      // Just the text inside braces
-                startIndex: match.index,  // Start position of the match
-                endIndex: match.index + match[0].length // End position of the match
-            });
-        }
-
-        // Check if any of the braced text matches our cloze word when normalized
         var normalizedClozeWord = normalizeText(clozeWord);
         var matchFound = false;
         var matchIndex = -1;
         var matchLength = 0;
 
-        // First, check for matches within curly braces
-        for (var i = 0; i < bracesMatches.length; i++) {
-            var normalizedBracedText = normalizeText(bracesMatches[i].innerText);
+        // 1. Try to find a match within explicit curly braces {}
+        var bracesRegex = /\{([^}]+)\}/g;
+        var match;
+        while ((match = bracesRegex.exec(sentenceField)) !== null && !matchFound) {
+            var innerText = match[1];
+            var normalizedBracedText = normalizeText(innerText);
             if (normalizedBracedText === normalizedClozeWord) {
                 matchFound = true;
-                matchIndex = bracesMatches[i].startIndex;
-                matchLength = bracesMatches[i].fullMatch.length;
-
-                // Log successful match for debugging
-                console.log('Matched braced text:', bracesMatches[i].innerText, 'with cloze word:', clozeWord);
-                console.log('Normalized forms:', normalizedBracedText, normalizedClozeWord);
-                break;
+                matchIndex = match.index;
+                matchLength = match[0].length; // Length of the full {match}
+                console.log('Match found within braces:', match[0]);
             }
         }
 
-        // If no match found in braces, try direct match in the sentence
+        // 2. If no match in braces, search the entire sentence
         if (!matchFound) {
-            var normalizedSentence = normalizeText(sentenceField);
-            var directMatchIndex = normalizedSentence.indexOf(normalizedClozeWord);
+            // Iterate through the original sentence to find the first substring
+            // that normalizes to the target cloze word.
+            outerLoop:
+            for (let i = 0; i < sentenceField.length; i++) {
+                 // Optimization: If remaining sentence length is less than minimum possible length, stop.
+                 if (sentenceField.length - i < normalizedClozeWord.length / 2 && normalizedClozeWord.length > 0) { // Basic heuristic
+                     break;
+                 }
 
-            if (directMatchIndex !== -1) {
-                // Calculate the actual match length in the original text
-                // This handles cases where normalization changes character count
-                var originalSubstring = sentenceField.substring(directMatchIndex, directMatchIndex + clozeWord.length * 2); // Use a larger window to be safe
-                var normalizedSubstring = normalizeText(originalSubstring);
-                var actualMatchLength = 0;
+                 // Check substrings starting at 'i', up to a reasonable max length
+                 for (let len = 1; i + len <= sentenceField.length && len <= clozeWord.length + 10; len++) {
+                     let originalSub = sentenceField.substring(i, i + len);
+                     let normalizedSub = normalizeText(originalSub);
 
-                // Find the shortest substring that normalizes to match the cloze word
-                for (var i = 1; i <= originalSubstring.length; i++) {
-                    var testSubstring = originalSubstring.substring(0, i);
-                    if (normalizeText(testSubstring) === normalizedClozeWord) {
-                        actualMatchLength = testSubstring.length;
-                        break;
-                    }
-                }
+                     if (normalizedSub === normalizedClozeWord) {
+                         // Found the first matching segment in the original string
+                         matchFound = true;
+                         matchIndex = i;
+                         matchLength = len;
+                         console.log('Direct match found via normalization:', originalSub);
+                         break outerLoop; // Exit both loops once the first match is found
+                     }
 
-                // If we couldn't determine the actual length, fall back to the cloze word length
-                if (actualMatchLength === 0) {
-                    actualMatchLength = clozeWord.length;
-                }
-
-                matchFound = true;
-                matchIndex = directMatchIndex;
-                matchLength = actualMatchLength;
-
-                // Log successful direct match for debugging
-                console.log('Direct match found at index:', directMatchIndex);
-                console.log('Original substring:', originalSubstring);
-                console.log('Actual match length:', actualMatchLength);
-                console.log('Normalized forms:', normalizedSubstring.substring(0, normalizedClozeWord.length), normalizedClozeWord);
-            } else {
-                // Fallback: Try an even more aggressive normalization approach
-                // This will strip all non-alphanumeric characters and try to match again
-                var aggressiveNormalizeSentence = normalizedSentence.replace(/[^\p{L}\p{N}\s]/gu, '');
-                var aggressiveNormalizeCloze = normalizedClozeWord.replace(/[^\p{L}\p{N}\s]/gu, '');
-
-                // Only proceed if we have meaningful content after aggressive normalization
-                if (aggressiveNormalizeCloze.trim().length > 0) {
-                    var aggressiveMatchIndex = aggressiveNormalizeSentence.indexOf(aggressiveNormalizeCloze);
-
-                    if (aggressiveMatchIndex !== -1) {
-                        console.log('Found match using aggressive normalization');
-                        console.log('Aggressive normalized sentence:', aggressiveNormalizeSentence);
-                        console.log('Aggressive normalized cloze:', aggressiveNormalizeCloze);
-
-                        // Now we need to map this back to the original text
-                        // Count non-alphanumeric characters before the match to adjust the index
-                        var charCount = 0;
-                        var originalIndex = 0;
-
-                        for (var i = 0; i < normalizedSentence.length && charCount < aggressiveMatchIndex; i++) {
-                            if (/[\p{L}\p{N}\s]/u.test(normalizedSentence[i])) {
-                                charCount++;
-                            }
-                            originalIndex++;
-                        }
-
-                        // Use a similar approach to find the actual match length
-                        var originalSubstring = sentenceField.substring(originalIndex, originalIndex + clozeWord.length * 2);
-                        var actualMatchLength = 0;
-
-                        // Find the shortest substring that aggressively normalizes to match the cloze word
-                        for (var i = 1; i <= originalSubstring.length; i++) {
-                            var testSubstring = originalSubstring.substring(0, i);
-                            if (normalizeText(testSubstring).replace(/[^\p{L}\p{N}\s]/gu, '') === aggressiveNormalizeCloze) {
-                                actualMatchLength = testSubstring.length;
-                                break;
-                            }
-                        }
-
-                        // If we couldn't determine the actual length, fall back to the cloze word length
-                        if (actualMatchLength === 0) {
-                            actualMatchLength = clozeWord.length;
-                        }
-
-                        matchFound = true;
-                        matchIndex = originalIndex;
-                        matchLength = actualMatchLength;
-
-                        console.log('Aggressive match mapped to original text at index:', originalIndex);
-                        console.log('Original substring:', originalSubstring);
-                        console.log('Actual match length:', actualMatchLength);
-                    }
-                }
+                     // Optimization: if normalized substring becomes longer than target, stop increasing length for this start 'i'
+                     if (normalizedSub.length > normalizedClozeWord.length && normalizedClozeWord.length > 0) {
+                         break; // Stop increasing length for this start index 'i'
+                     }
+                 }
             }
         }
 
@@ -190,7 +122,7 @@
         } else {
             // No match found, append placeholder to the end
             modifiedSentenceHTML = sentenceField + " " + clozePlaceholder;
-            console.error("Cloze word not found in sentence field!");
+            console.error("Cloze word '", clozeWord, "' (normalized: '", normalizedClozeWord, "') not found in sentence field: '", sentenceField, "'. Appending placeholder.");
         }
 
         sentenceDisplay.innerHTML = modifiedSentenceHTML;
@@ -310,8 +242,8 @@
                 if (i < clozeWord.length) {
                     var targetChar = clozeWord[i];
 
-                    // Normalize both characters for comparison
-                    var normalizedInput = normalizeText(inputChar.toLowerCase());
+                    // Normalize both characters for comparison (case-insensitive, accent-insensitive, symbol-insensitive)
+                    var normalizedInput = normalizeText(inputChar.toLowerCase()); // Lowercase before normalize
                     var normalizedTarget = normalizeText(targetChar.toLowerCase());
 
                     // Compare normalized versions for case-insensitivity and accent-insensitivity
@@ -319,12 +251,15 @@
                         // Exact match (case-insensitive, accent-insensitive)
                         className = 'char-correct';
                     } else {
+                        // Store result from Hangul/space checks separately
+                        let specificCheckClassName = null;
+
                         // --- Check specifically for an incorrect space ---
                         if (inputChar === ' ') { // Target must be different, checked by inputChar !== targetChar
-                            className = 'char-incorrect-space';
+                             specificCheckClassName = 'char-incorrect-space';
                         }
                         // --- If not an incorrect space, proceed with other checks (Hangul) ---
-                        else {
+                        else if (normalizedInput !== normalizedTarget) { // Only do Hangul checks if normalized forms differ
                             try {
                                 // Use original characters for Hangul checks, not normalized ones
                                 let targetCode = targetChar.charCodeAt(0);
@@ -345,7 +280,7 @@
 
                                 // Scenario 1: Input is just the initial consonant matching the target's initial
                                 if (isTargetSyllable && isInputJustInitial && targetInitialIndex === inputInitialIndex) {
-                                    className = 'char-incomplete';
+                                    specificCheckClassName = 'char-incomplete';
                                 }
                                 // Scenario 2: Both are syllables, compare them
                                 else if (isTargetSyllable && isInputSyllable) {
@@ -356,46 +291,47 @@
 
                                             // --- Specific Check for 업 vs 없 ---
                                             if (inputChar === '업' && targetChar === '없') {
-                                                className = 'char-incomplete';
+                                                specificCheckClassName = 'char-incomplete';
                                             }
                                             // --- General Final Consonant Logic ---
                                             else {
                                                 if (targetFinalIndex === inputFinalIndex) {
                                                     // Finals match. Should have been caught by exact match earlier.
-                                                    className = 'char-incorrect';
+                                                    specificCheckClassName = 'char-incorrect';
                                                 } else if ((inputFinalIndex === 0 && targetFinalIndex !== 0) || isBaseFinalConsonant(inputFinalIndex, targetFinalIndex)) {
                                                     // Incomplete if:
                                                     // 1. Input lacks final, target has final (e.g., '가' vs '각')
                                                     // 2. Input final is the base of a compound target final (e.g., '업' vs '없')
                                                     // Note: The specific check above should handle 업/없, but keep general logic.
-                                                    className = 'char-incomplete';
+                                                    specificCheckClassName = 'char-incomplete';
                                                 } else {
                                                     // Any other final mismatch (e.g., '각' vs '간')
-                                                    className = 'char-incorrect';
+                                                    specificCheckClassName = 'char-incorrect';
                                                 }
                                             }
                                         } else if (isBaseMedialVowel(inputMedialIndex, targetMedialIndex)) {
                                             // Initials match, Medial is base of target medial
                                             if (inputFinalIndex === 0) {
                                                 // And input has no final (e.g., '호' vs '회')
-                                                className = 'char-incomplete';
+                                                specificCheckClassName = 'char-incomplete';
                                             } else {
                                                 // Base medial but input has final - incorrect (e.g., '혹' vs '회')
-                                                className = 'char-incorrect';
+                                                specificCheckClassName = 'char-incorrect';
                                             }
                                         } else {
                                             // Initials match, but Medials mismatch (and not base)
-                                            className = 'char-incorrect';
+                                            specificCheckClassName = 'char-incorrect';
                                         }
                                     } else {
                                         // Initials mismatch
-                                        className = 'char-incorrect';
+                                        specificCheckClassName = 'char-incorrect';
                                     }
                                 }
                                 // Scenario 3: Other mismatches (e.g., non-syllable vs syllable, non-Hangul)
                                 else {
                                      // Default to incorrect if not handled by Scenario 1 or 2
-                                     className = 'char-incorrect';
+                                     // Only set if no other specific class was set
+                                     if (specificCheckClassName === null) specificCheckClassName = 'char-incorrect';
                                 }
 
                             } catch (e) {
@@ -403,6 +339,9 @@
                                 className = 'char-incorrect'; // Default to incorrect on error
                             }
                         } // --- End of non-space mismatch checks ---
+
+                        // Assign the result from specific checks, or default to 'char-incorrect' if none applied
+                        className = specificCheckClassName || 'char-incorrect';
                     }
                 } else { // Input is longer than cloze word
                     if (inputChar === ' ') {
