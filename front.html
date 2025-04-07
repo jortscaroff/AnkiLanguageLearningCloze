@@ -32,32 +32,38 @@
         function normalizeText(text) {
             if (!text) return '';
 
-            // First normalize using NFD to handle accented characters
-            let normalized = text.normalize('NFD');
+            // First decode HTML entities (including &#x27; and similar)
+            let normalized = decodeHTMLEntities(text);
 
-            // Handle a comprehensive set of apostrophes, quotes, and similar characters
-            // This includes straight/curly/typographic quotes, apostrophes, primes, backticks, etc.
+            // Then normalize using NFD to handle accented characters
+            normalized = normalized.normalize('NFD');
+
+            // Handle apostrophes and quotes as in original function
             normalized = normalized.replace(/[''′`´''‛′″‵ʹʻʼʽʾʿˈˊˋ˴''""„‟]/g, "'");
-
-            // Normalize various dash characters
+            
+            // Rest of the normalization remains the same
             normalized = normalized.replace(/[\u2012-\u2015\u2053]/g, "-");
-
-            // Normalize various space characters (non-breaking spaces, thin spaces, etc.)
             normalized = normalized.replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, " ");
-
-            // Normalize multiple consecutive spaces to a single space
             normalized = normalized.replace(/\s+/g, " ");
-
-            // Remove Unicode variation selectors (often invisible, can cause mismatches)
             normalized = normalized.replace(/[\uFE00-\uFE0F]/g, '');
-
-            // Remove zero-width spaces and joiners
             normalized = normalized.replace(/[\u200B-\u200D\uFEFF]/g, '');
-
-            // Trim leading/trailing whitespace
             normalized = normalized.trim();
 
             return normalized;
+        }
+
+        // Helper function to decode HTML entities
+        function decodeHTMLEntities(text) {
+            if (!text) return '';
+            
+            // Create a temporary element
+            const textArea = document.createElement('textarea');
+            
+            // Set its value to the text containing entities
+            textArea.innerHTML = text;
+            
+            // Return the decoded text
+            return textArea.value;
         }
 
         // --- Initial Setup ---
