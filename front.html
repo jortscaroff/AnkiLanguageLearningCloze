@@ -257,94 +257,105 @@
                         // Exact match (case-insensitive, accent-insensitive)
                         className = 'char-correct';
                     } else {
-                        // Store result from Hangul/space checks separately
+                        // Store result from specific checks separately
                         let specificCheckClassName = null;
 
-                        // --- Check specifically for an incorrect space ---
-                        if (inputChar === ' ') { // Target must be different, checked by inputChar !== targetChar
-                             specificCheckClassName = 'char-incorrect-space';
+                        // --- NEW: Check for base character match (accent mismatch) ---
+                        // Normalize both characters to NFD and remove diacritics
+                        let baseInputChar = inputChar.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                        let baseTargetChar = targetChar.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+                        if (baseInputChar === baseTargetChar && baseInputChar !== '') {
+                             specificCheckClassName = 'char-incomplete'; // Treat as partial match
                         }
-                        // --- If not an incorrect space, proceed with other checks (Hangul) ---
-                        else if (normalizedInput !== normalizedTarget) { // Only do Hangul checks if normalized forms differ
-                            try {
-                                // Use original characters for Hangul checks, not normalized ones
-                                let targetCode = targetChar.charCodeAt(0);
-                                let inputCode = inputChar.charCodeAt(0);
-                                let isTargetSyllable = targetCode >= 0xAC00 && targetCode <= 0xD7A3;
-                                let isInputSyllable = inputCode >= 0xAC00 && inputCode <= 0xD7A3;
+                        // --- END NEW CHECK ---
 
-                                // Get Jamo indices
-                                let targetInitialIndex = getFirstJamoIndex(targetChar);
-                                let inputInitialIndex = getFirstJamoIndex(inputChar);
-                                let targetMedialIndex = getMedialJamoIndex(targetChar);
-                                let inputMedialIndex = getMedialJamoIndex(inputChar);
-                                let targetFinalIndex = getFinalJamoIndex(targetChar); // 0 means no final
-                                let inputFinalIndex = getFinalJamoIndex(inputChar);   // 0 means no final
+                        // --- Check specifically for an incorrect space ---
+                        // Only check if not already classified as incomplete accent mismatch
+                        else if (inputChar === ' ') { // Target must be different, checked by normalizedInput !== normalizedTarget
+                              specificCheckClassName = 'char-incorrect-space';
+                        }
+                        // --- If not an incorrect space or accent mismatch, proceed with other checks (Hangul) ---
+                        else { // Only do Hangul checks if not space or accent mismatch
+                             try {
+                                 // Use original characters for Hangul checks, not normalized ones
+                                 let targetCode = targetChar.charCodeAt(0);
+                                 let inputCode = inputChar.charCodeAt(0);
+                                 let isTargetSyllable = targetCode >= 0xAC00 && targetCode <= 0xD7A3;
+                                 let isInputSyllable = inputCode >= 0xAC00 && inputCode <= 0xD7A3;
 
-                                // Check if input is just an initial consonant (not a full syllable)
-                                let isInputJustInitial = inputInitialIndex !== null && !isInputSyllable;
+                                 // Get Jamo indices
+                                 let targetInitialIndex = getFirstJamoIndex(targetChar);
+                                 let inputInitialIndex = getFirstJamoIndex(inputChar);
+                                 let targetMedialIndex = getMedialJamoIndex(targetChar);
+                                 let inputMedialIndex = getMedialJamoIndex(inputChar);
+                                 let targetFinalIndex = getFinalJamoIndex(targetChar); // 0 means no final
+                                 let inputFinalIndex = getFinalJamoIndex(inputChar);   // 0 means no final
 
-                                // Scenario 1: Input is just the initial consonant matching the target's initial
-                                if (isTargetSyllable && isInputJustInitial && targetInitialIndex === inputInitialIndex) {
-                                    specificCheckClassName = 'char-incomplete';
-                                }
-                                // Scenario 2: Both are syllables, compare them
-                                else if (isTargetSyllable && isInputSyllable) {
-                                    if (targetInitialIndex === inputInitialIndex) {
-                                        // Initials match
-                                        if (targetMedialIndex === inputMedialIndex) {
-                                            // Initials and Medials match. Check finals.
+                                 // Check if input is just an initial consonant (not a full syllable)
+                                 let isInputJustInitial = inputInitialIndex !== null && !isInputSyllable;
 
-                                            // --- Specific Check for 업 vs 없 ---
-                                            if (inputChar === '업' && targetChar === '없') {
-                                                specificCheckClassName = 'char-incomplete';
-                                            }
-                                            // --- General Final Consonant Logic ---
-                                            else {
-                                                if (targetFinalIndex === inputFinalIndex) {
-                                                    // Finals match. Should have been caught by exact match earlier.
-                                                    specificCheckClassName = 'char-incorrect';
-                                                } else if ((inputFinalIndex === 0 && targetFinalIndex !== 0) || isBaseFinalConsonant(inputFinalIndex, targetFinalIndex)) {
-                                                    // Incomplete if:
-                                                    // 1. Input lacks final, target has final (e.g., '가' vs '각')
-                                                    // 2. Input final is the base of a compound target final (e.g., '업' vs '없')
-                                                    // Note: The specific check above should handle 업/없, but keep general logic.
-                                                    specificCheckClassName = 'char-incomplete';
-                                                } else {
-                                                    // Any other final mismatch (e.g., '각' vs '간')
-                                                    specificCheckClassName = 'char-incorrect';
-                                                }
-                                            }
-                                        } else if (isBaseMedialVowel(inputMedialIndex, targetMedialIndex)) {
-                                            // Initials match, Medial is base of target medial
-                                            if (inputFinalIndex === 0) {
-                                                // And input has no final (e.g., '호' vs '회')
-                                                specificCheckClassName = 'char-incomplete';
-                                            } else {
-                                                // Base medial but input has final - incorrect (e.g., '혹' vs '회')
-                                                specificCheckClassName = 'char-incorrect';
-                                            }
-                                        } else {
-                                            // Initials match, but Medials mismatch (and not base)
-                                            specificCheckClassName = 'char-incorrect';
-                                        }
-                                    } else {
-                                        // Initials mismatch
-                                        specificCheckClassName = 'char-incorrect';
-                                    }
-                                }
-                                // Scenario 3: Other mismatches (e.g., non-syllable vs syllable, non-Hangul)
-                                else {
-                                     // Default to incorrect if not handled by Scenario 1 or 2
-                                     // Only set if no other specific class was set
-                                     if (specificCheckClassName === null) specificCheckClassName = 'char-incorrect';
-                                }
+                                 // Scenario 1: Input is just the initial consonant matching the target's initial
+                                 if (isTargetSyllable && isInputJustInitial && targetInitialIndex === inputInitialIndex) {
+                                     specificCheckClassName = 'char-incomplete';
+                                 }
+                                 // Scenario 2: Both are syllables, compare them
+                                 else if (isTargetSyllable && isInputSyllable) {
+                                     if (targetInitialIndex === inputInitialIndex) {
+                                         // Initials match
+                                         if (targetMedialIndex === inputMedialIndex) {
+                                             // Initials and Medials match. Check finals.
 
-                            } catch (e) {
-                                console.error("Error during Hangul check:", e);
-                                className = 'char-incorrect'; // Default to incorrect on error
-                            }
-                        } // --- End of non-space mismatch checks ---
+                                             // --- Specific Check for 업 vs 없 ---
+                                             if (inputChar === '업' && targetChar === '없') {
+                                                 specificCheckClassName = 'char-incomplete';
+                                             }
+                                             // --- General Final Consonant Logic ---
+                                             else {
+                                                 if (targetFinalIndex === inputFinalIndex) {
+                                                     // Finals match. Should have been caught by exact match earlier.
+                                                     specificCheckClassName = 'char-incorrect';
+                                                 } else if ((inputFinalIndex === 0 && targetFinalIndex !== 0) || isBaseFinalConsonant(inputFinalIndex, targetFinalIndex)) {
+                                                     // Incomplete if:
+                                                     // 1. Input lacks final, target has final (e.g., '가' vs '각')
+                                                     // 2. Input final is the base of a compound target final (e.g., '업' vs '없')
+                                                     // Note: The specific check above should handle 업/없, but keep general logic.
+                                                     specificCheckClassName = 'char-incomplete';
+                                                 } else {
+                                                     // Any other final mismatch (e.g., '각' vs '간')
+                                                     specificCheckClassName = 'char-incorrect';
+                                                 }
+                                             }
+                                         } else if (isBaseMedialVowel(inputMedialIndex, targetMedialIndex)) {
+                                             // Initials match, Medial is base of target medial
+                                             if (inputFinalIndex === 0) {
+                                                 // And input has no final (e.g., '호' vs '회')
+                                                 specificCheckClassName = 'char-incomplete';
+                                             } else {
+                                                 // Base medial but input has final - incorrect (e.g., '혹' vs '회')
+                                                 specificCheckClassName = 'char-incorrect';
+                                             }
+                                         } else {
+                                             // Initials match, but Medials mismatch (and not base)
+                                             specificCheckClassName = 'char-incorrect';
+                                         }
+                                     } else {
+                                         // Initials mismatch
+                                         specificCheckClassName = 'char-incorrect';
+                                     }
+                                 }
+                                 // Scenario 3: Other mismatches (e.g., non-syllable vs syllable, non-Hangul)
+                                 else {
+                                      // Default to incorrect if not handled by Scenario 1 or 2
+                                      // Only set if no other specific class was set
+                                      if (specificCheckClassName === null) specificCheckClassName = 'char-incorrect';
+                                 }
+
+                             } catch (e) {
+                                 console.error("Error during Hangul check:", e);
+                                 specificCheckClassName = 'char-incorrect'; // Default to incorrect on error
+                             }
+                         } // --- End of non-space mismatch checks ---
 
                         // Assign the result from specific checks, or default to 'char-incorrect' if none applied
                         className = specificCheckClassName || 'char-incorrect';
